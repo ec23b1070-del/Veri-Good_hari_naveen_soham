@@ -1,12 +1,13 @@
 module top (
     input clk,
     input rst,
-    input [7:0] instr   // instruction fed from outside (testbench / memory)
+    input [7:0] instr
 );
     // ---------- Decoder outputs ----------
     wire [3:0] opcode;
     wire [1:0] rd, rs1, rs2;
-    wire reg_wr_en, ram_wr_en, mac_en, load_en, store_en;
+    wire reg_wr_en, ram_wr_en;
+    wire mac_en, load_ram_en, store_ram_en, load_reg_en, store_reg_en;
  
     // ---------- Register File wires ----------
     wire [7:0] rs1_data, rs2_data;
@@ -14,7 +15,7 @@ module top (
  
     // ---------- MAC wires ----------
     wire [15:0] mac_out;
-    reg  [15:0] acc_reg; // accumulator register
+    reg  [15:0] acc_reg;
  
     // ---------- RAM wires ----------
     wire [7:0] ram_rd_data;
@@ -22,16 +23,18 @@ module top (
     // ===================== INSTANTIATIONS =====================
  
     instr_decoder u_decoder (
-        .instr     (instr),
-        .opcode    (opcode),
-        .rd        (rd),
-        .rs1       (rs1),
-        .rs2       (rs2),
-        .reg_wr_en (reg_wr_en),
-        .ram_wr_en (ram_wr_en),
-        .mac_en    (mac_en),
-        .load_en   (load_en),
-        .store_en  (store_en)
+        .instr        (instr),
+        .opcode       (opcode),
+        .rd           (rd),
+        .rs1          (rs1),
+        .rs2          (rs2),
+        .reg_wr_en    (reg_wr_en),
+        .ram_wr_en    (ram_wr_en),
+        .mac_en       (mac_en),
+        .load_ram_en  (load_ram_en),
+        .store_ram_en (store_ram_en),
+        .load_reg_en  (load_reg_en),
+        .store_reg_en (store_reg_en)
     );
  
     reg_file u_regfile (
@@ -58,8 +61,8 @@ module top (
     ram #(.DEPTH(256), .ADDR_WIDTH(8)) u_ram (
         .clk     (clk),
         .wr_en   (ram_wr_en),
-        .addr    ({6'b0, rs2}),    // rs2 as 8-bit RAM address (zero-extended)
-        .wr_data (rs1_data),       // STORE: write rs1 data to RAM
+        .addr    ({6'b0, rs2}),
+        .wr_data (rs1_data),
         .rd_data (ram_rd_data)
     );
  
@@ -68,16 +71,17 @@ module top (
         if (rst)
             acc_reg <= 16'b0;
         else if (mac_en)
-            acc_reg <= mac_out; // latch MAC result as next acc_in
+            acc_reg <= mac_out;
     end
  
     // ===================== WRITE-BACK MUX =====================
-    // Decide what goes into the register file
     always @(*) begin
-        if (load_en)
-            reg_wr_data = ram_rd_data;       // LOAD: from RAM
+        if (load_ram_en)
+            reg_wr_data = ram_rd_data;       // LOAD_RAM:  Rd = RAM[Rs2]
+        else if (load_reg_en || store_reg_en)
+            reg_wr_data = rs1_data;          // LOAD_REG / STORE_REG: Rd = Rs1
         else if (mac_en)
-            reg_wr_data = mac_out[7:0];      // MAC: lower 8 bits of result
+            reg_wr_data = mac_out[7:0];      // MAC: lower 8 bits
         else
             reg_wr_data = 8'b0;
     end
