@@ -20,6 +20,9 @@ module top (
     // ---------- RAM wires ----------
     wire [7:0] ram_rd_data;
  
+    // ---------- Cycle Counter ----------
+    reg [31:0] cycle_count;
+ 
     // ===================== INSTANTIATIONS =====================
  
     instr_decoder u_decoder (
@@ -66,6 +69,14 @@ module top (
         .rd_data (ram_rd_data)
     );
  
+    // ===================== CYCLE COUNTER =====================
+    always @(posedge clk or posedge rst) begin
+        if (rst)
+            cycle_count <= 32'b0;
+        else
+            cycle_count <= cycle_count + 1;
+    end
+ 
     // ===================== ACCUMULATOR UPDATE =====================
     always @(posedge clk or posedge rst) begin
         if (rst)
@@ -77,13 +88,14 @@ module top (
     // ===================== WRITE-BACK MUX =====================
     always @(*) begin
         if (load_ram_en)
-            reg_wr_data = ram_rd_data;       // LOAD_RAM:  Rd = RAM[Rs2]
+            reg_wr_data = ram_rd_data;
         else if (load_reg_en || store_reg_en)
-            reg_wr_data = rs1_data;          // LOAD_REG / STORE_REG: Rd = Rs1
+            reg_wr_data = rs1_data;
         else if (mac_en)
-            reg_wr_data = mac_out[7:0];      // MAC: lower 8 bits
+            reg_wr_data = mac_out[7:0];
         else
             reg_wr_data = 8'b0;
     end
  
 endmodule
+ 
