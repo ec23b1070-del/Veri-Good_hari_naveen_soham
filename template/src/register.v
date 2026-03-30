@@ -1,3 +1,4 @@
+`timescale 1ns/1ps
 module reg_file (
     input clk,
     input rst,
