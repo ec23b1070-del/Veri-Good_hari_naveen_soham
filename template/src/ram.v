@@ -1,3 +1,4 @@
+`timescale 1ns/1ps
 module ram #(
     parameter DEPTH = 64,
     parameter ADDR_WIDTH = 8  // log2(DEPTH)
